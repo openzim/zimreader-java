@@ -2,8 +2,8 @@
 ZIMReader in Java
 =================
 
-    This is a port of the ZIMReader to Java. One of the aims of this project is to enable mobile users 
-    developing on Android, J2ME and other platforms to use the ZIM files and build offline Wikipedia
+    This is a port of the ZIMReader in Java. One of the aims of this project is to enable mobile users 
+    developing on Android, J2ME and other platforms to use ZIM files and build offline Wikipedia
     readers.
 
 
@@ -12,7 +12,7 @@ ZIMReader in Java
 
 
     This code was built on Java 1.6 and has not been tested on previous versions. However, I'll test it
-    soon on previous ones as well. In the next release, I intend to provide an Ant build.xml file as well.
+    soon on previous ones as well. In the next release, I intend to provide an Ant build.xml file too.
 
 
     If you find any bugs, please report them to <aruneshmathur1990  at  gmail.com> or visit the IRC channel 
