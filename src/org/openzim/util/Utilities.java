@@ -17,6 +17,7 @@
 package org.openzim.util;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 public class Utilities {
 	
@@ -72,4 +73,9 @@ public class Utilities {
 			return result;
 		}
 	}
+
+	public static void skipFully(InputStream stream, long bytes) throws IOException {
+	        for (long i = stream.skip(bytes); i < bytes; i += stream.skip(bytes - i));
+     	}
+
 }

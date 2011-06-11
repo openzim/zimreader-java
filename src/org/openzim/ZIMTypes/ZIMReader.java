@@ -285,17 +285,16 @@ public class ZIMReader {
 			// LZMA2 compressed data
 			case 4:
 
-				// byte[] for reading data, 100 KiB
-				// TODO: WARNING: Logic fails if articleCount>25600. Fix it.
-				buffer = new byte[102400];
+				// Read the first 4 bytes to find out the number of artciles
+				buffer = new byte[4];
 
 				// Create a dictionary with size 40KiB
-				xzReader = new SingleXZInputStream(mReader, 40960);
+				xzReader = new SingleXZInputStream(mReader, 4194304);
 
-				// Read the compressed data
+				// Read the first offset
 				xzReader.read(buffer);
 
-				// The first four bytes are the offset of the first
+				// The first four bytes are the offset of the zeroth blob
 				int firstOffset = Utilities.toFourLittleEndianInteger(buffer);
 
 				// The number of blobs
@@ -303,67 +302,33 @@ public class ZIMReader {
 
 				// The blobNumber has to be lesser than the numberOfBlobs
 				assert blobNumber < numberOfBlobs;
+			
+				int offset1,offset2,location,differenceOffset;
 
-				int arrayLocation1,
-				arrayLocation2,
-				offset1,
-				offset2,
-				differenceOffset,
-				numberOfBytesRead,
-				i;
-
-				// The offset of the blob we are looking for
-				arrayLocation1 = (blobNumber * 4);
-				offset1 = Utilities
-						.toFourLittleEndianInteger(Arrays.copyOfRange(buffer,
-								arrayLocation1, arrayLocation1 + 4));
-				// System.out.println(arrayLocation1 + " : " + offset1);
-
-				// The offset of the blob next to the blob we are looking for
-				arrayLocation2 = arrayLocation1 + 4;
-				offset2 = Utilities
-						.toFourLittleEndianInteger(Arrays.copyOfRange(buffer,
-								arrayLocation2, arrayLocation2 + 4));
-				// System.out.println(arrayLocation2 + " : " + offset2);
-				// System.out.println(offset2);
-
-				// Essentially the number of bytes that must be read
-				differenceOffset = offset2 - offset1;
-				// System.out.println(differenceOffset);
-
-				// xzReader.skip(offset1 - firstOffset - 4);
-
-				if (offset1 >= buffer.length) {
+				if(blobNumber==0) {
+					offset1 = firstOffset;					
+				} else {
+					location = (blobNumber-1) * 4;
+					Utilities.skipFully(xzReader,location);
 					xzReader.read(buffer);
-					arrayLocation1 = buffer.length;
-					while (offset1 - arrayLocation1 >= buffer.length) {
-						xzReader.read(buffer);
-						arrayLocation1 += buffer.length;
-					}
-					offset1 = offset1 - arrayLocation1;
+					offset1 = Utilities.toFourLittleEndianInteger(buffer);					
 				}
 
-				/*
-				 * FileWriter fw = new FileWriter(
-				 * "C:\\Users\\t-arunm\\Desktop\\output.html"); BufferedWriter
-				 * br = new BufferedWriter(fw);
-				 */
+				xzReader.read(buffer);
+				offset2 = Utilities.toFourLittleEndianInteger(buffer);					
+				
+				differenceOffset = offset2-offset1;
+				buffer = new byte[differenceOffset];
 
-				numberOfBytesRead = 0;
-				i = offset1;
+				Utilities.skipFully(xzReader,(offset1 - 4*(blobNumber+2)));
+
+				xzReader.read(buffer,0,differenceOffset);
+			
 				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				while (numberOfBytesRead < differenceOffset) {
-					if (i >= buffer.length) {
-						xzReader.read(buffer);
-						i = 0;
-					}
-					// System.out.print((char) buffer[i++]);
-					baos.write(buffer[i++]);
-					numberOfBytesRead++;
-				}
+				baos.write(buffer,0,differenceOffset);
 
-				return new String(baos.toByteArray());
-				// break;
+				return baos.toString("utf-8");
+				
 			}
 		}
 
