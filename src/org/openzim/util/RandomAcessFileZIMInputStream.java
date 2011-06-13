@@ -22,12 +22,11 @@ import java.io.RandomAccessFile;
 
 /**
  * This is an implementation of RandomAccessFile to ensure that it is an
- * InputStream as well, specifically designed for reading a ZIM file.
- * Ad-Hoc implementation, can be improved.
+ * InputStream as well, specifically designed for reading a ZIM file. Ad-Hoc
+ * implementation, can be improved.
  * 
- * @author Arunesh Mathur <aruneshmathur1990  at  gmail.com>
+ * @author Arunesh Mathur <aruneshmathur1990 at gmail.com>
  */
-
 
 public class RandomAcessFileZIMInputStream extends InputStream {
 
@@ -85,24 +84,20 @@ public class RandomAcessFileZIMInputStream extends InputStream {
 	// '\0' is encountered
 	public String readString() throws IOException {
 		StringBuffer sb = new StringBuffer();
-		int i;
-		byte[] buffer = new byte[100];
-		while (true) {
-			mRAFReader.read(buffer);
-			for (i = 0; i < buffer.length; i++) {
-				if (buffer[i] == '\0') {
-					break;
-				}
-				sb.append((char) buffer[i]);
-			}
-			if (i != buffer.length)
-				break;
+		/*
+		 * int i; byte[] buffer = new byte[100]; while (true) {
+		 * mRAFReader.read(buffer); for (i = 0; i < buffer.length; i++) { if
+		 * (buffer[i] == '\0') { break; } sb.append((char) buffer[i]); } if (i
+		 * != buffer.length) break; } return sb.toString();
+		 */
+		int b;
+		b = mRAFReader.read();
+		while (b != '\0') {
+			sb.append((char) b);
+			b = mRAFReader.read();
 		}
 		return sb.toString();
-		/*
-		 * int b; b = mRAFReader.read(); while (b != '\0') { sb.append((char)
-		 * b); b = mRAFReader.read(); } return sb.toString();
-		 */
+
 	}
 
 	@Override

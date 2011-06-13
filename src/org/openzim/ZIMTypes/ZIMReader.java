@@ -14,10 +14,8 @@
  * along with zimreader-java.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 package org.openzim.ZIMTypes;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -166,84 +164,37 @@ public class ZIMReader {
 	// TODO: Extend this function so that it gives info like the Zimlib
 	public DirectoryEntry getDirectoryInfo(String articleName)
 			throws IOException {
-		List<String> listParam = getURLListByURL();
-		byte[] buffer = new byte[8];
 
-		// TODO: Change indexOf to a binary search
-		int urlListindex = listParam.indexOf(articleName), pos;
+		DirectoryEntry entry;
+		String cmpStr;
+		int numberOfArticles = mFile.getArticleCount();
+		int beg = mFile.getTitlePtrPos(), end = beg + (numberOfArticles * 4), mid;
 
-		if (urlListindex != -1) {
+		articleName = "A/" + articleName;
 
-			// Move to the article at index
-			mReader.seek(mFile.getUrlPtrPos() + urlListindex * 8);
+		while (beg <= end) {
+			mid = beg + 4 * (((end - beg) / 4) / 2);
+			entry = getDirectoryInfoAtTitlePosition(mid);
+			if (entry == null) {
+				return null;
+			}
+			cmpStr = entry.getNamespace() + "/" + entry.getUrl();
+			if (articleName.compareTo(cmpStr) < 0) {
+				end = mid - 4;
 
-			// Get value of article at index
-			pos = mReader.readEightLittleEndianBytesValue(buffer);
-
-			// Go to the location of the directory entry
-			mReader.seek(pos);
-
-			int type = mReader.readTwoLittleEndianBytesValue(buffer);
-
-			// Ignore the parameter length
-			mReader.read();
-
-			char namespace = (char) mReader.read();
-			// System.out.println("Namepsace: " + namespace);
-
-			int revision = mReader.readFourLittleEndianBytesValue(buffer);
-			// System.out.println("Revision: " + revision);
-
-			// TODO: Remove redundant if condition code
-			// Article or Redirect entry
-			if (type == 65535) {
-
-				// System.out.println("MIMEType: " + type);
-
-				int redirectIndex = mReader
-						.readFourLittleEndianBytesValue(buffer);
-				// System.out.println("RedirectIndex: " + redirectIndex);
-
-				String url = mReader.readString();
-				// System.out.println("URL: " + url);
-
-				String title = mReader.readString();
-				title = title.equals("") ? url : title;
-				// System.out.println("Title: " + title);
-
-				return new RedirectEntry(type, namespace, revision,
-						redirectIndex, url, title, urlListindex);
+			} else if (articleName.compareTo(cmpStr) > 0) {
+				beg = mid + 4;
 
 			} else {
-
-				// System.out.println("MIMEType: " + mFile.getMIMEType(type));
-
-				int clusterNumber = mReader
-						.readFourLittleEndianBytesValue(buffer);
-				// System.out.println("Cluster Number: " + clusterNumber);
-
-				int blobNumber = mReader.readFourLittleEndianBytesValue(buffer);
-				// System.out.println("Blob Number: " + blobNumber);
-
-				String url = mReader.readString();
-				// System.out.println("URL: " + url);
-
-				String title = mReader.readString();
-				title = title.equals("") ? url : title;
-				// System.out.println("Title: " + title);
-
-				// Parameter data ignored
-
-				return new ArticleEntry(type, namespace, revision,
-						clusterNumber, blobNumber, url, title, urlListindex);
+				return entry;
 			}
 		}
+
 		return null;
+
 	}
 
-	// TODO: IMPORTANT. Make it cleaner by using SKIP()
-	public String getArticleData(String articleName)
-			throws IOException {
+	public String getArticleData(String articleName) throws IOException {
 
 		byte[] buffer = new byte[8];
 
@@ -288,7 +239,8 @@ public class ZIMReader {
 				// Read the first 4 bytes to find out the number of artciles
 				buffer = new byte[4];
 
-				// Create a dictionary with size 40KiB
+				// Create a dictionary with size 40MiB, the zimlib uses this
+				// size while creating
 				xzReader = new SingleXZInputStream(mReader, 4194304);
 
 				// Read the first offset
@@ -302,36 +254,123 @@ public class ZIMReader {
 
 				// The blobNumber has to be lesser than the numberOfBlobs
 				assert blobNumber < numberOfBlobs;
-			
-				int offset1,offset2,location,differenceOffset;
 
-				if(blobNumber==0) {
-					offset1 = firstOffset;					
+				int offset1,
+				offset2,
+				location,
+				differenceOffset;
+
+				if (blobNumber == 0) {
+					// The first offset is what we read earlier
+					offset1 = firstOffset;
 				} else {
-					location = (blobNumber-1) * 4;
-					Utilities.skipFully(xzReader,location);
+
+					location = (blobNumber - 1) * 4;
+					Utilities.skipFully(xzReader, location);
 					xzReader.read(buffer);
-					offset1 = Utilities.toFourLittleEndianInteger(buffer);					
+					offset1 = Utilities.toFourLittleEndianInteger(buffer);
 				}
 
 				xzReader.read(buffer);
-				offset2 = Utilities.toFourLittleEndianInteger(buffer);					
-				
-				differenceOffset = offset2-offset1;
+				offset2 = Utilities.toFourLittleEndianInteger(buffer);
+
+				differenceOffset = offset2 - offset1;
 				buffer = new byte[differenceOffset];
 
-				Utilities.skipFully(xzReader,(offset1 - 4*(blobNumber+2)));
+				Utilities.skipFully(xzReader, (offset1 - 4 * (blobNumber + 2)));
 
-				xzReader.read(buffer,0,differenceOffset);
-			
+				xzReader.read(buffer, 0, differenceOffset);
+
 				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				baos.write(buffer,0,differenceOffset);
+				baos.write(buffer, 0, differenceOffset);
 
 				return baos.toString("utf-8");
-				
+
 			}
 		}
 
 		return null;
+	}
+
+	public ZIMFile getZIMFile() {
+		return mFile;
+	}
+
+	public DirectoryEntry getDirectoryInfoAtTitlePosition(int position)
+			throws IOException {
+
+		// Helpers
+		int pos;
+		byte[] buffer = new byte[8];
+
+		// At the appropriate position in the titlePtrPos
+		mReader.seek(position);
+
+		// Get value of article at index
+		pos = mReader.readFourLittleEndianBytesValue(buffer);
+
+		// Move to the position in urlPtrPos
+		mReader.seek(mFile.getUrlPtrPos() + 8 * pos);
+
+		// Get value of article in urlPtrPos
+		pos = mReader.readEightLittleEndianBytesValue(buffer);
+
+		// Go to the location of the directory entry
+		mReader.seek(pos);
+
+		int type = mReader.readTwoLittleEndianBytesValue(buffer);
+
+		// Ignore the parameter length
+		mReader.read();
+
+		char namespace = (char) mReader.read();
+		// System.out.println("Namepsace: " + namespace);
+
+		int revision = mReader.readFourLittleEndianBytesValue(buffer);
+		// System.out.println("Revision: " + revision);
+
+		// TODO: Remove redundant if condition code
+		// Article or Redirect entry
+		if (type == 65535) {
+
+			// System.out.println("MIMEType: " + type);
+
+			int redirectIndex = mReader.readFourLittleEndianBytesValue(buffer);
+			// System.out.println("RedirectIndex: " + redirectIndex);
+
+			String url = mReader.readString();
+			// System.out.println("URL: " + url);
+
+			String title = mReader.readString();
+			title = title.equals("") ? url : title;
+			// System.out.println("Title: " + title);
+
+			return new RedirectEntry(type, namespace, revision, redirectIndex,
+					url, title, (position - mFile.getUrlPtrPos()) / 8);
+
+		} else {
+
+			// System.out.println("MIMEType: " + mFile.getMIMEType(type));
+
+			int clusterNumber = mReader.readFourLittleEndianBytesValue(buffer);
+			// System.out.println("Cluster Number: " + clusterNumber);
+
+			int blobNumber = mReader.readFourLittleEndianBytesValue(buffer);
+			// System.out.println("Blob Number: " + blobNumber);
+
+			String url = mReader.readString();
+			// System.out.println("URL: " + url);
+
+			String title = mReader.readString();
+			title = title.equals("") ? url : title;
+			// System.out.println("Title: " + title);
+
+			// Parameter data ignored
+
+			return new ArticleEntry(type, namespace, revision, clusterNumber,
+					blobNumber, url, title,
+					(position - mFile.getUrlPtrPos()) / 8);
+		}
+
 	}
 }
