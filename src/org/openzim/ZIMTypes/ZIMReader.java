@@ -326,10 +326,6 @@ public class ZIMReader {
 
 	}
 
-	public ZIMFile getZIMFile() {
-		return mFile;
-	}
-
 	public DirectoryEntry getDirectoryInfoAtTitlePosition(int position)
 			throws IOException {
 
@@ -410,83 +406,5 @@ public class ZIMReader {
 
 	public ZIMFile getZIMFile() {
 		return mFile;
-	}
-
-	public DirectoryEntry getDirectoryInfoAtTitlePosition(int position)
-			throws IOException {
-
-		// Helpers
-		int pos;
-		byte[] buffer = new byte[8];
-
-		// At the appropriate position in the titlePtrPos
-		mReader.seek(position);
-
-		// Get value of article at index
-		pos = mReader.readFourLittleEndianBytesValue(buffer);
-
-		// Move to the position in urlPtrPos
-		mReader.seek(mFile.getUrlPtrPos() + 8 * pos);
-
-		// Get value of article in urlPtrPos
-		pos = mReader.readEightLittleEndianBytesValue(buffer);
-
-		// Go to the location of the directory entry
-		mReader.seek(pos);
-
-		int type = mReader.readTwoLittleEndianBytesValue(buffer);
-
-		// Ignore the parameter length
-		mReader.read();
-
-		char namespace = (char) mReader.read();
-		// System.out.println("Namepsace: " + namespace);
-
-		int revision = mReader.readFourLittleEndianBytesValue(buffer);
-		// System.out.println("Revision: " + revision);
-
-		// TODO: Remove redundant if condition code
-		// Article or Redirect entry
-		if (type == 65535) {
-
-			// System.out.println("MIMEType: " + type);
-
-			int redirectIndex = mReader.readFourLittleEndianBytesValue(buffer);
-			// System.out.println("RedirectIndex: " + redirectIndex);
-
-			String url = mReader.readString();
-			// System.out.println("URL: " + url);
-
-			String title = mReader.readString();
-			title = title.equals("") ? url : title;
-			// System.out.println("Title: " + title);
-
-			return new RedirectEntry(type, namespace, revision, redirectIndex,
-					url, title, (position - mFile.getUrlPtrPos()) / 8);
-
-		} else {
-
-			// System.out.println("MIMEType: " + mFile.getMIMEType(type));
-
-			int clusterNumber = mReader.readFourLittleEndianBytesValue(buffer);
-			// System.out.println("Cluster Number: " + clusterNumber);
-
-			int blobNumber = mReader.readFourLittleEndianBytesValue(buffer);
-			// System.out.println("Blob Number: " + blobNumber);
-
-			String url = mReader.readString();
-			// System.out.println("URL: " + url);
-
-			String title = mReader.readString();
-			title = title.equals("") ? url : title;
-			// System.out.println("Title: " + title);
-
-			// Parameter data ignored
-
-			return new ArticleEntry(type, namespace, revision, clusterNumber,
-					blobNumber, url, title,
-					(position - mFile.getUrlPtrPos()) / 8);
-		}
-
 	}
 }

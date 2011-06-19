@@ -36,7 +36,7 @@ public class ZIMTest {
 		try {
 			// args[1] is the name of the articles that is
  			// to be fetched
-			System.out.println(zReader.getArticleData(args[1],'A'));
+			System.out.println(zReader.getArticleData(args[1],'A').toString("utf-8"));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
